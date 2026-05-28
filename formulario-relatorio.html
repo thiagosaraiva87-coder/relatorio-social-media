@@ -249,19 +249,25 @@ async function buscarDados() {
       // Cada métrica separada para evitar erros de métricas inválidas
       let igDailyReach = [];
       const igMetricMap = [
-        ['reach',          'ig_alc', true],
-        ['views',          'ig_imp', false],
-        ['profile_views',  'ig_vis', false],
-        ['website_clicks', 'ig_clk', false],
+        ['reach',              'ig_alc', true],
+        ['views',              'ig_imp', false],
+        ['profile_views',      'ig_vis', false],
+        ['website_clicks',     'ig_clk', false],
         ['total_interactions', 'ig_eng', false],
       ];
+      let igErros = [];
       for (const [metric, field, isReach] of igMetricMap) {
         try {
-          const r = await apiFetch(`${BASE}/${igId}/insights?metric=${metric}${dp}`);
+          const r = await apiFetch(`${BASE}/${igId}/insights?metric=${metric}&period=day&since=${since}&until=${until}&metric_type=total_value&access_token=${token}`);
           const d = r.data?.[0];
-          if (d) { setV(field, sumValues(d)); if (isReach) igDailyReach = d.values || []; }
-        } catch(e) {}
+          if (d) {
+            const val = d.total_value?.value ?? sumValues(d);
+            setV(field, val);
+            if (isReach) igDailyReach = d.values || d.total_value?.breakdowns?.[0]?.results || [];
+          }
+        } catch(e) { igErros.push(metric + ': ' + e.message); }
       }
+      if (igErros.length > 0) console.warn('IG erros:', igErros);
       // Agrega alcance IG por semana
       const igWeeks = [0,0,0,0];
       igDailyReach.forEach(v => {
