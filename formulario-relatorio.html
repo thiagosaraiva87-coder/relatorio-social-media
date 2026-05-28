@@ -37,6 +37,18 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
 .btn-dl:hover{opacity:.88}.btn-dl:disabled{opacity:.5;cursor:not-allowed}
 .btn-pre{width:100%;padding:11px;background:transparent;border:1px solid var(--border);border-radius:11px;color:var(--muted);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:10px;transition:border-color .2s,color .2s}
 .btn-pre:hover{border-color:#6faef7;color:#6faef7}.btn-pre:disabled{opacity:.5;cursor:not-allowed}
+.api-box{background:linear-gradient(135deg,rgba(131,58,180,.12),rgba(225,48,108,.08));border:1px solid rgba(131,58,180,.35);border-radius:14px;padding:22px}
+.btn-api{width:100%;padding:12px;background:linear-gradient(135deg,#833AB4,#E1306C);border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:14px;transition:opacity .2s}
+.btn-api:hover{opacity:.88}.btn-api:disabled{opacity:.5;cursor:not-allowed}
+.api-status{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:12px;display:none}
+.api-status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#4ade80}
+.api-status.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171}
+.api-status.loading{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:#fbbf24}
+.sh.api{color:#c084fc}
+.token-wrap{position:relative}.token-wrap input{padding-right:40px}
+.token-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0}
+.help-link{font-size:11px;color:#6faef7;text-decoration:none;margin-left:6px}
+.help-link:hover{text-decoration:underline}
 @media(max-width:680px){.g3,.g2,.pg,.hr,.hh{grid-template-columns:1fr}.top,.wrap{padding:16px}}
 </style>
 </head>
@@ -46,6 +58,49 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
   <div><h1>Gerador de Relatório Social Media</h1><p>Preencha os dados e baixe o dashboard HTML pronto para enviar ao cliente</p></div>
 </div>
 <div class="wrap">
+
+  <!-- ⚡ API Section -->
+  <div class="sec">
+    <div class="sh api">⚡ Importação Automática via Meta API <span style="font-size:10px;font-weight:400;color:var(--muted)">(opcional)</span></div>
+    <div class="api-box">
+      <p class="hint" style="margin-bottom:16px">Configure uma vez e busque todos os dados automaticamente. <a class="help-link" href="https://developers.facebook.com/tools/explorer" target="_blank">Obter token →</a></p>
+      <div class="g3">
+        <div class="f" style="grid-column:span 2">
+          <label>Token de Acesso</label>
+          <div class="token-wrap">
+            <input id="api_token" type="password" placeholder="EAAxxxxxx... (Graph API Explorer)">
+            <button class="token-eye" onclick="toggleToken()" title="Mostrar/ocultar">👁</button>
+          </div>
+        </div>
+        <div class="f">
+          <label>ID da Página Facebook</label>
+          <input id="api_page_id" type="text" placeholder="Ex: 123456789012345">
+        </div>
+      </div>
+      <div class="g3" style="margin-top:12px">
+        <div class="f">
+          <label>Mês</label>
+          <select id="api_mes">
+            <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+            <option value="3">Março</option><option value="4">Abril</option>
+            <option value="5">Maio</option><option value="6">Junho</option>
+            <option value="7">Julho</option><option value="8">Agosto</option>
+            <option value="9">Setembro</option><option value="10">Outubro</option>
+            <option value="11">Novembro</option><option value="12">Dezembro</option>
+          </select>
+        </div>
+        <div class="f">
+          <label>Ano</label>
+          <input id="api_ano" type="number" placeholder="2025" value="2025">
+        </div>
+        <div class="f" style="justify-content:flex-end">
+          <label>&nbsp;</label>
+          <button class="btn-api" id="btn-api" onclick="buscarDados()">⚡ Buscar dados automaticamente</button>
+        </div>
+      </div>
+      <div class="api-status" id="api-status"></div>
+    </div>
+  </div>
 
   <div class="sec">
     <div class="sh">Informações do Relatório</div>
@@ -93,10 +148,10 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
   </div>
 
   <div class="sec">
-    <div class="sh">Histórico de Alcance — Últimos 6 Meses</div>
+    <div class="sh">Alcance Semanal do Mês</div>
     <div class="box">
-      <p class="hint" style="margin-bottom:14px">Do mais antigo ao mais recente. O último deve ser o mês atual.</p>
-      <div class="hh"><span>Mês</span><span>Facebook</span><span>Instagram</span></div>
+      <p class="hint" style="margin-bottom:14px">Alcance de cada semana do mês — Facebook e Instagram.</p>
+      <div class="hh"><span>Semana</span><span>Alcance Facebook</span><span>Alcance Instagram</span></div>
       <div id="hist-area"></div>
     </div>
   </div>
@@ -106,6 +161,159 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
 </div>
 
 <script>
+// ── Meta Graph API ───────────────────────────────────────────────────
+const API_VER = 'v19.0';
+const BASE = 'https://graph.facebook.com/' + API_VER;
+
+function toggleToken() {
+  const el = document.getElementById('api_token');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function apiStatus(msg, type) {
+  const el = document.getElementById('api-status');
+  el.textContent = msg; el.className = 'api-status ' + type; el.style.display = 'block';
+}
+
+async function apiFetch(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message);
+  return j;
+}
+
+function sumValues(metricData) {
+  return (metricData.values || []).reduce((s, v) => s + (parseFloat(v.value) || 0), 0);
+}
+
+async function buscarDados() {
+  const token   = document.getElementById('api_token').value.trim();
+  const pageId  = document.getElementById('api_page_id').value.trim();
+  const mes     = parseInt(document.getElementById('api_mes').value);
+  const ano     = parseInt(document.getElementById('api_ano').value);
+
+  if (!token)  { apiStatus('⚠ Informe o Token de Acesso.', 'err'); return; }
+  if (!pageId) { apiStatus('⚠ Informe o ID da Página Facebook.', 'err'); return; }
+
+  const btn = document.getElementById('btn-api');
+  btn.disabled = true; btn.textContent = '⏳ Buscando...';
+  apiStatus('Buscando dados do Facebook e Instagram...', 'loading');
+
+  try {
+    const since = Math.floor(new Date(ano, mes - 1, 1).getTime() / 1000);
+    const until = Math.floor(new Date(ano, mes, 0, 23, 59, 59).getTime() / 1000);
+    const dp    = `&period=day&since=${since}&until=${until}&access_token=${token}`;
+
+    // ── Facebook: total de fãs ─────────────────────────────────────
+    const pageInfo = await apiFetch(`${BASE}/${pageId}?fields=fan_count,name&access_token=${token}`);
+    const pageName = pageInfo.name || '';
+    setV('fb_curt', pageInfo.fan_count || 0);
+    if (pageName && !document.getElementById('cliente').value)
+      document.getElementById('cliente').value = pageName;
+
+    // ── Facebook: insights diários ─────────────────────────────────
+    const fbMetrics = 'page_impressions,page_impressions_unique,page_post_engagements,page_fan_adds,page_views_total,page_total_actions';
+    const fbIns = await apiFetch(`${BASE}/${pageId}/insights?metric=${fbMetrics}${dp}`);
+    let fbDailyReach = [];
+    fbIns.data.forEach(m => {
+      const total = sumValues(m);
+      switch (m.name) {
+        case 'page_impressions':        setV('fb_imp',   total); break;
+        case 'page_impressions_unique': setV('fb_alc',   total); fbDailyReach = m.values || []; break;
+        case 'page_post_engagements':   setV('fb_eng',   total); break;
+        case 'page_fan_adds':           setV('fb_ncurt', total); break;
+        case 'page_views_total':        setV('fb_vis',   total); break;
+        case 'page_total_actions':      setV('fb_clk',   total); break;
+      }
+    });
+    // Agrega alcance FB por semana
+    const fbWeeks = [0,0,0,0];
+    fbDailyReach.forEach(v => {
+      const day = new Date(v.end_time).getDate();
+      const w = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+      fbWeeks[w] += parseFloat(v.value) || 0;
+    });
+    fbWeeks.forEach((v,i) => setV(`h${i}f`, Math.round(v)));
+
+    // ── Descobrir ID do Instagram ─────────────────────────────────
+    let igId = '';
+    try {
+      const igConn = await apiFetch(`${BASE}/${pageId}?fields=instagram_business_account&access_token=${token}`);
+      igId = igConn.instagram_business_account?.id || '';
+    } catch(e) {}
+
+    // ── Instagram: insights ───────────────────────────────────────
+    if (igId) {
+      const igMetrics = 'reach,impressions,profile_views,website_clicks';
+      const igIns = await apiFetch(`${BASE}/${igId}/insights?metric=${igMetrics}${dp}`);
+      let igDailyReach = [];
+      igIns.data.forEach(m => {
+        const total = sumValues(m);
+        switch (m.name) {
+          case 'reach':          setV('ig_alc', total); igDailyReach = m.values || []; break;
+          case 'impressions':    setV('ig_imp', total); break;
+          case 'profile_views':  setV('ig_vis', total); break;
+          case 'website_clicks': setV('ig_clk', total); break;
+        }
+      });
+      // Agrega alcance IG por semana
+      const igWeeks = [0,0,0,0];
+      igDailyReach.forEach(v => {
+        const day = new Date(v.end_time).getDate();
+        const w = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+        igWeeks[w] += parseFloat(v.value) || 0;
+      });
+      igWeeks.forEach((v,i) => setV(`h${i}g`, Math.round(v)));
+      // Seguidores: último valor de follower_count
+      try {
+        const flw = await apiFetch(`${BASE}/${igId}/insights?metric=follower_count${dp}`);
+        const vals = (flw.data?.[0]?.values || []).filter(v => v.value > 0);
+        if (vals.length > 0) {
+          setV('ig_seg', vals[vals.length - 1].value);
+          if (vals.length > 1) setV('ig_nseg', Math.max(0, vals[vals.length-1].value - vals[0].value));
+        }
+      } catch(e) {}
+      // Taxa de engajamento calculada
+      const igAlc = parseFloat(document.getElementById('ig_alc').value) || 0;
+      const igEng = parseFloat(document.getElementById('ig_eng').value) || 0;
+      if (igAlc > 0) setV('ig_taxa', (igEng / igAlc * 100).toFixed(1));
+    }
+
+    // Preenche período automaticamente
+    const nomesMes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    if (!document.getElementById('periodo').value)
+      document.getElementById('periodo').value = `${nomesMes[mes]} ${ano}`;
+
+    // Salva token e page_id para próxima vez
+    localStorage.setItem('api_token',   token);
+    localStorage.setItem('api_page_id', pageId);
+    localStorage.setItem('api_mes',     mes);
+    localStorage.setItem('api_ano',     ano);
+
+    const igMsg = igId ? 'Facebook e Instagram preenchidos.' : 'Facebook preenchido. Instagram não encontrado (vincule a conta à Página).';
+    apiStatus('✓ ' + igMsg + ' Confira os campos e clique em Baixar.', 'ok');
+  } catch(err) {
+    apiStatus('✗ Erro: ' + err.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Buscar dados automaticamente';
+  }
+}
+
+function setV(id, val) {
+  const el = document.getElementById(id);
+  if (el) { el.value = val; save(); }
+}
+
+// Restaura campos da API do localStorage
+setTimeout(() => {
+  const fields = ['api_token','api_page_id','api_mes','api_ano'];
+  fields.forEach(k => {
+    const v = localStorage.getItem(k);
+    const el = document.getElementById(k);
+    if (v && el) el.value = v;
+  });
+}, 300);
+
 // ── Gera cards dos posts ──────────────────────────────────────────────
 const tipos = ['Reel','Feed','Story','Carrossel'];
 const pArea = document.getElementById('posts-area');
@@ -121,12 +329,11 @@ for (let n = 1; n <= 3; n++) {
   </div></div>`;
 }
 
-// ── Gera linhas do histórico ──────────────────────────────────────────
-const mLbl = ['Dez','Jan','Fev','Mar','Abr','Mai'];
+// ── Gera linhas das semanas ───────────────────────────────────────────
 const hArea = document.getElementById('hist-area');
-for (let i = 0; i < 6; i++) {
+for (let i = 0; i < 4; i++) {
   hArea.innerHTML += `<div class="hr">
-    <div class="f"><input type="text" id="h${i}l" placeholder="${mLbl[i]}"></div>
+    <div class="f"><input type="text" id="h${i}l" value="Semana ${i+1}" placeholder="Semana ${i+1}"></div>
     <div class="f"><input type="number" id="h${i}f" placeholder="0"></div>
     <div class="f"><input type="number" id="h${i}g" placeholder="0"></div>
   </div>`;
@@ -138,7 +345,7 @@ const KEYS = ['agencia','cliente','periodo',
   'ig_alc','ig_imp','ig_seg','ig_nseg','ig_eng','ig_taxa','ig_vis','ig_clk','ig_pub','ig_reels',
   'p1_ti','p1_le','p1_al','p1_cu','p1_co','p2_ti','p2_le','p2_al','p2_cu','p2_co',
   'p3_ti','p3_le','p3_al','p3_cu','p3_co'];
-for (let i=0;i<6;i++) KEYS.push(`h${i}l`,`h${i}f`,`h${i}g`);
+for (let i=0;i<4;i++) KEYS.push(`h${i}l`,`h${i}f`,`h${i}g`);
 
 const save = () => {
   const o={};KEYS.forEach(k=>{const e=document.getElementById(k);if(e)o[k]=e.value;});
@@ -179,7 +386,7 @@ async function getData() {
   for(let n=1;n<=3;n++){
     d.p.push({ti:gS(`p${n}_ti`),le:esc(gS(`p${n}_le`)),al:gN(`p${n}_al`),cu:gN(`p${n}_cu`),co:gN(`p${n}_co`),im:await readImg(`p${n}_im`)});
   }
-  for(let i=0;i<6;i++) d.hs.push({l:gS(`h${i}l`)||`M${i+1}`,f:gN(`h${i}f`),g:gN(`h${i}g`)});
+  for(let i=0;i<4;i++) d.hs.push({l:gS(`h${i}l`)||`Semana ${i+1}`,f:gN(`h${i}f`),g:gN(`h${i}g`)});
   return d;
 }
 
@@ -187,8 +394,7 @@ async function getData() {
 function mkHTML(d) {
   const tFB = d.fb.alc>0?(d.fb.eng/d.fb.alc*100).toFixed(1)+'%':'0.0%';
   const tIG = d.ig.taxa>0?d.ig.taxa.toFixed(1)+'%':'0.0%';
-  const totAlc=d.fb.alc+d.ig.alc, totImp=d.fb.imp+d.ig.imp, totEng=d.fb.eng+d.ig.eng;
-  const totPub=d.fb.pub+d.ig.pub, totClk=d.fb.clk+d.ig.clk, totSeg=d.fb.curt+d.ig.seg;
+  const totEng=d.fb.eng+d.ig.eng;
   const dC=Math.round(totEng*.62),dCo=Math.round(totEng*.12),dCp=Math.round(totEng*.09),dS=totEng-dC-dCo-dCp;
   const hL=d.hs.map(h=>`'${h.l}'`).join(','), hF=d.hs.map(h=>h.f).join(','), hG=d.hs.map(h=>h.g).join(',');
   const posts=d.p.map(p=>`<div class="pc">${imgDiv(p.im)}<div class="pm"><div class="pt ${cls(p.ti)}">${p.ti}</div><div class="pcp">${p.le||'(sem legenda)'}</div><div class="ps"><div class="psi">&#128065; <span>Alcance:</span> ${fmt(p.al)}</div><div class="psi">&#10084; ${fmt(p.cu)}</div><div class="psi">&#128172; ${fmt(p.co)}</div></div></div></div>`).join('');
@@ -228,22 +434,12 @@ new Chart(document.getElementById('cE').getContext('2d'),{type:'doughnut',data:{
 <div class="kc"><div class="kl">Publicações no Mês</div><div class="kv">${fmt(d.ig.pub)}</div><div class="ks">Feed + Stories + Reels</div></div>
 <div class="kc"><div class="kl">Plays em Reels</div><div class="kv">${fmt(d.ig.reels)}</div></div>
 </div></div></div>
-<div class="st">Evolução Histórica</div><div class="cr">
-<div class="cc"><h3>Alcance por Mês</h3><p>Facebook e Instagram &mdash; últimos 6 meses</p><div class="cw"><canvas id="cA"></canvas></div></div>
+<div class="st">Alcance Semanal</div><div class="cr">
+<div class="cc"><h3>Alcance por Semana</h3><p>Facebook e Instagram &mdash; semanas do mês</p><div class="cw"><canvas id="cA"></canvas></div></div>
 <div class="cc"><h3>Taxa de Engajamento</h3><p>Engajamento &divide; Alcance &times; 100</p>
 <div class="rg"><div class="ri"><div class="rv">${tFB}</div><div class="rl">Facebook</div></div><div class="ri"><div class="rv">${tIG}</div><div class="rl">Instagram</div></div></div>
 <div style="margin-top:24px"><div class="cw" style="height:140px"><canvas id="cE"></canvas></div></div></div></div>
 <div class="st">Top Publicações do Mês</div><div class="pg">${posts}</div>
-<div class="st">Resumo do Período</div><div class="sc"><table>
-<thead><tr><th>Métrica</th><th>Facebook</th><th>Instagram</th><th>Total</th></tr></thead><tbody>
-<tr><td class="mn">Alcance</td><td>${fmt(d.fb.alc)}</td><td>${fmt(d.ig.alc)}</td><td>${fmt(totAlc)}</td></tr>
-<tr><td class="mn">Impressões</td><td>${fmt(d.fb.imp)}</td><td>${fmt(d.ig.imp)}</td><td>${fmt(totImp)}</td></tr>
-<tr><td class="mn">Engajamento Total</td><td>${fmt(d.fb.eng)}</td><td>${fmt(d.ig.eng)}</td><td>${fmt(totEng)}</td></tr>
-<tr><td class="mn">Taxa de Engajamento</td><td>${tFB}</td><td>${tIG}</td><td>-</td></tr>
-<tr><td class="mn">Publicações</td><td>${fmt(d.fb.pub)}</td><td>${fmt(d.ig.pub)}</td><td>${fmt(totPub)}</td></tr>
-<tr><td class="mn">Cliques no Link</td><td>${fmt(d.fb.clk)}</td><td>${fmt(d.ig.clk)}</td><td>${fmt(totClk)}</td></tr>
-<tr><td class="mn">Seguidores/Curtidas (total)</td><td>${fmt(d.fb.curt)}</td><td>${fmt(d.ig.seg)}</td><td>${fmt(totSeg)}</td></tr>
-</tbody></table></div>
 </main>
 <footer class="footer">Relatório gerado por <strong>${d.ag}</strong> &middot; Dados do Meta Business Suite &middot; ${d.pe}</footer>
 <script>${chartJS}<\/script>
