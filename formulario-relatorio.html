@@ -188,18 +188,54 @@ function mkHTML(d) {
   const tIG = d.ig.taxa>0?d.ig.taxa.toFixed(1)+'%':'0.0%';
   const totEng=d.fb.eng+d.ig.eng;
   const dC=totEng>0?Math.round(totEng*.62):25,dCo=totEng>0?Math.round(totEng*.12):25,dCp=totEng>0?Math.round(totEng*.09):25,dS=totEng>0?(totEng-dC-dCo-dCp):25;
-  const hL=d.hs.map(h=>`'${h.l}'`).join(','), hF=d.hs.map(h=>h.f).join(','), hG=d.hs.map(h=>h.g).join(',');
   const posts=d.p.map(p=>`<div class="pc">${imgDiv(p.im)}<div class="pm"><div class="pt ${cls(p.ti)}">${p.ti}</div><div class="pcp">${p.le||'(sem legenda)'}</div><div class="ps"><div class="psi">&#128065; <span>Alcance:</span> ${fmt(p.al)}</div><div class="psi">&#10084; ${fmt(p.cu)}</div><div class="psi">&#128172; ${fmt(p.co)}</div></div></div></div>`).join('');
+
+  // ── SVG Bar Chart ─────────────────────────────────────────────────────
+  const _maxV=Math.max(...d.hs.map(h=>h.f),...d.hs.map(h=>h.g),1);
+  const _W=500,_H=200,_pl=46,_pb=28,_pt=22,_pr=8,_cW=_W-_pl-_pr,_cH=_H-_pt-_pb,_n=d.hs.length,_gW=_cW/_n,_bW=Math.min(_gW*.28,36);
+  let _gl='';
+  [.25,.5,.75,1].forEach(t=>{
+    const y=(_pt+_cH*(1-t)).toFixed(1);
+    const v=Math.round(_maxV*t);
+    const lv=v>=10000?(v/1000).toFixed(0)+'k':v>=1000?(v/1000).toFixed(1)+'k':''+v;
+    _gl+=`<line x1="${_pl}" y1="${y}" x2="${_W-_pr}" y2="${y}" stroke="rgba(255,255,255,0.07)" stroke-width="1"/><text x="${_pl-5}" y="${(+y+4).toFixed(1)}" text-anchor="end" fill="#8b8fa8" font-size="9.5">${lv}</text>`;
+  });
+  let _bars='';
+  d.hs.forEach((h,i)=>{
+    const cx=_pl+_gW*(i+.5);
+    const hf=Math.max((h.f/_maxV)*_cH,0), hi=Math.max((h.g/_maxV)*_cH,0);
+    _bars+=`<rect x="${(cx-_bW-2).toFixed(1)}" y="${(_pt+_cH-hf).toFixed(1)}" width="${_bW.toFixed(1)}" height="${Math.max(hf,.5).toFixed(1)}" fill="rgba(24,119,242,0.8)" rx="3"/>`;
+    _bars+=`<rect x="${(cx+2).toFixed(1)}" y="${(_pt+_cH-hi).toFixed(1)}" width="${_bW.toFixed(1)}" height="${Math.max(hi,.5).toFixed(1)}" fill="rgba(225,48,108,0.8)" rx="3"/>`;
+    _bars+=`<text x="${cx.toFixed(1)}" y="${_H-6}" text-anchor="middle" fill="#8b8fa8" font-size="10">${h.l}</text>`;
+  });
+  const barSVG=`<svg viewBox="0 0 ${_W} ${_H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">${_gl}<line x1="${_pl}" y1="${_pt}" x2="${_pl}" y2="${_pt+_cH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/><line x1="${_pl}" y1="${_pt+_cH}" x2="${_W-_pr}" y2="${_pt+_cH}" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>${_bars}<rect x="${_pl}" y="5" width="9" height="9" fill="rgba(24,119,242,0.8)" rx="2"/><text x="${_pl+13}" y="13.5" fill="#8b8fa8" font-size="10">Facebook</text><rect x="${_pl+77}" y="5" width="9" height="9" fill="rgba(225,48,108,0.8)" rx="2"/><text x="${_pl+90}" y="13.5" fill="#8b8fa8" font-size="10">Instagram</text></svg>`;
+
+  // ── SVG Donut Chart ───────────────────────────────────────────────────
+  const _dColors=['#E1306C','#833AB4','#1877F2','#F77737'];
+  const _dLbls=['Curtidas','Comentários','Compartilhamentos','Salvos'];
+  const _dData=[dC,dCo,dCp,dS];
+  const _dTot=_dData.reduce((a,b)=>a+b,0)||1;
+  const _dR=44,_dcx=80,_dcy=58,_dsw=20,_dCirc=2*Math.PI*_dR;
+  let _dCum=0,_dSegs='';
+  _dData.forEach((v,i)=>{
+    const arc=(v/_dTot)*_dCirc;
+    const off=(_dCirc/4-_dCum*_dCirc/_dTot).toFixed(2);
+    _dCum+=v;
+    _dSegs+=`<circle cx="${_dcx}" cy="${_dcy}" r="${_dR}" fill="none" stroke="${_dColors[i]}" stroke-width="${_dsw}" stroke-dasharray="${arc.toFixed(2)} ${(_dCirc-arc).toFixed(2)}" stroke-dashoffset="${off}"/>`;
+  });
+  let _dLeg='';
+  _dLbls.forEach((l,i)=>{
+    const col=i%2,row=Math.floor(i/2);
+    const lx=col===0?6:86,ly=_dcy+_dR+_dsw/2+16+row*15;
+    _dLeg+=`<rect x="${lx}" y="${ly-7}" width="8" height="8" fill="${_dColors[i]}" rx="2"/><text x="${lx+12}" y="${ly}" fill="#8b8fa8" font-size="9.5">${l}</text>`;
+  });
+  const donutSVG=`<svg viewBox="0 0 160 148" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">${_dSegs}${_dLeg}</svg>`;
 
   const css = `:root{--blue:#1877F2;--pink:#E1306C;--purple:#833AB4;--grad:linear-gradient(135deg,#833AB4,#E1306C 50%,#F77737);--dark:#0f1117;--card:#1a1d27;--border:#2a2d3a;--text:#e8eaf0;--muted:#8b8fa8}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;line-height:1.5}.header{background:var(--card);border-bottom:1px solid var(--border);padding:20px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.hL{display:flex;align-items:center;gap:20px}.logo{width:52px;height:52px;border-radius:12px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:#fff;flex-shrink:0}.hT h1{font-size:18px;font-weight:700}.hT p{color:var(--muted);font-size:13px}.hR{display:flex;align-items:center;gap:12px}.cb{background:rgba(24,119,242,.15);border:1px solid rgba(24,119,242,.35);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;color:#6faef7}.pb{background:rgba(131,58,180,.15);border:1px solid rgba(131,58,180,.35);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;color:#c084fc}.main{padding:32px 40px;max-width:1400px;margin:0 auto}.st{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px}.st::after{content:'';flex:1;height:1px;background:var(--border)}.pr{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px}.pb2{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}.ph{padding:14px 20px;display:flex;align-items:center;gap:10px;font-weight:700;font-size:14px;border-bottom:1px solid var(--border)}.ph.fb{background:rgba(24,119,242,.1);color:#6faef7}.ph.ig{background:rgba(225,48,108,.1);color:#f472b6}.ph svg{width:20px;height:20px;flex-shrink:0}.kg{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border)}.kc{background:var(--card);padding:18px 20px}.kl{font-size:11px;color:var(--muted);margin-bottom:6px}.kv{font-size:22px;font-weight:800;letter-spacing:-.02em}.ks{font-size:11px;color:var(--muted);margin-top:5px}.cr{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-bottom:32px}.cc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px 24px}.cc h3{font-size:14px;font-weight:700;margin-bottom:4px}.cc p{font-size:12px;color:var(--muted);margin-bottom:20px}.cw{position:relative;height:220px}.rg{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}.ri{background:#12151e;border-radius:10px;padding:14px;text-align:center}.rv{font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}.rl{font-size:11px;color:var(--muted);margin-top:4px}.pg{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}.pc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}.pi{height:160px;background:#12151e;display:flex;align-items:center;justify-content:center;font-size:36px;border-bottom:1px solid var(--border);overflow:hidden}.pi img{width:100%;height:100%;object-fit:cover;display:block}.pm{padding:14px}.pt{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:8px}.pt.reel{background:rgba(131,58,180,.2);color:#c084fc}.pt.feed{background:rgba(225,48,108,.2);color:#f472b6}.pt.story{background:rgba(247,119,55,.2);color:#fb923c}.pt.carrou{background:rgba(24,119,242,.2);color:#6faef7}.pcp{font-size:12px;color:var(--muted);margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.ps{display:flex;gap:12px;flex-wrap:wrap}.psi{font-size:12px;color:var(--text);display:flex;align-items:center;gap:4px}.psi span{color:var(--muted);font-size:11px}.sc{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:32px}.sc table{width:100%;border-collapse:collapse}.sc thead th{background:#12151e;padding:12px 20px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border)}.sc thead th:not(:first-child){text-align:right}.sc tbody tr{border-bottom:1px solid var(--border)}.sc tbody tr:last-child{border-bottom:none}.sc tbody tr:hover{background:#1e2130}.sc tbody td{padding:13px 20px;font-size:13px}.sc tbody td:not(:first-child){text-align:right;font-weight:600}.sc tbody td.mn{color:var(--muted)}.footer{text-align:center;padding:28px 40px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}.footer strong{color:var(--text)}@media(max-width:900px){.pr,.cr,.pg{grid-template-columns:1fr}.main{padding:20px 16px}}.ref{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;margin-bottom:32px}.ref h3{font-size:14px;font-weight:700;margin-bottom:4px}.ref .sub{font-size:12px;color:var(--muted);margin-bottom:16px}.rft{width:100%;display:grid;grid-template-columns:155px repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden}.rft-hd{background:#12151e;padding:10px 14px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:center}.rft-hd:first-child{text-align:left}.rft-lbl{background:var(--card);padding:10px 14px;font-size:12px;color:var(--muted);display:flex;align-items:center}.rft-v{background:var(--card);padding:10px 14px;font-size:12px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center}.tag-r{color:#f87171}.tag-m{color:#fbbf24}.tag-b{color:#4ade80}.tag-e{color:#c084fc}.fb-note{margin-top:14px;padding:12px 16px;background:#12151e;border-radius:8px;font-size:11px;color:var(--muted);line-height:1.8}@media(max-width:900px){.rft{grid-template-columns:100px repeat(4,1fr)}}`;
 
   const fbSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047v-2.66c0-3.025 1.792-4.697 4.532-4.697 1.313 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.885v2.266h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>`;
   const igSVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>`;
 
-  const chartJS = `function initCharts(){
-new Chart(document.getElementById('cA').getContext('2d'),{type:'bar',data:{labels:[${hL}],datasets:[{label:'Facebook',data:[${hF}],backgroundColor:'rgba(24,119,242,0.75)',borderRadius:6,borderSkipped:false},{label:'Instagram',data:[${hG}],backgroundColor:'rgba(225,48,108,0.75)',borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8b8fa8',font:{size:12}}},tooltip:{backgroundColor:'#1a1d27',titleColor:'#e8eaf0',bodyColor:'#8b8fa8',borderColor:'#2a2d3a',borderWidth:1}},scales:{x:{grid:{color:'rgba(255,255,255,0.08)'},ticks:{color:'#8b8fa8'}},y:{grid:{color:'rgba(255,255,255,0.08)'},ticks:{color:'#8b8fa8'}}}}}});
-new Chart(document.getElementById('cE').getContext('2d'),{type:'doughnut',data:{labels:['Curtidas','Comentários','Compartilhamentos','Salvos'],datasets:[{data:[${dC},${dCo},${dCp},${dS}],backgroundColor:['#E1306C','#833AB4','#1877F2','#F77737'],borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#8b8fa8',font:{size:11},padding:10,boxWidth:10}},tooltip:{backgroundColor:'#1a1d27',titleColor:'#e8eaf0',bodyColor:'#8b8fa8',borderColor:'#2a2d3a',borderWidth:1}}}}});}
-var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';_s.onload=initCharts;_s.onerror=function(){var _s2=document.createElement('script');_s2.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';_s2.onload=initCharts;document.head.appendChild(_s2);};document.head.appendChild(_s);`;
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Relatório ${d.pe} - ${d.cl}</title>
@@ -228,10 +264,10 @@ var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/cha
 <div class="kc"><div class="kl">Plays em Reels</div><div class="kv">${fmt(d.ig.reels)}</div></div>
 </div></div></div>
 <div class="st">Alcance Semanal</div><div class="cr">
-<div class="cc"><h3>Alcance por Semana</h3><p>Facebook e Instagram combinados &mdash; semanas do mês</p><div class="cw"><canvas id="cA"></canvas></div></div>
+<div class="cc"><h3>Alcance por Semana</h3><p>Facebook e Instagram combinados &mdash; semanas do mês</p><div class="cw">${barSVG}</div></div>
 <div class="cc"><h3>Taxa de Engajamento</h3><p>Engajamento &divide; Alcance &times; 100</p>
 <div class="rg"><div class="ri"><div class="rv">${tFB}</div><div class="rl">Facebook</div></div><div class="ri"><div class="rv">${tIG}</div><div class="rl">Instagram</div></div></div>
-<div style="margin-top:24px"><div class="cw" style="height:140px"><canvas id="cE"></canvas></div></div></div></div>
+<div style="margin-top:24px"><div class="cw" style="height:148px">${donutSVG}</div></div></div></div>
 <div class="st">Referência de Taxa de Engajamento</div>
 <div class="ref">
 <h3>📊 Como interpretar a taxa de engajamento</h3>
@@ -247,7 +283,6 @@ var _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/cha
 <div class="st">Top Publicações do Mês</div><div class="pg">${posts}</div>
 </main>
 <footer class="footer">Relatório gerado por <strong>${d.ag}</strong> &middot; Dados do Meta Business Suite &middot; ${d.pe}</footer>
-<script>${chartJS}<\/script>
 </body></html>`;
 }
 
