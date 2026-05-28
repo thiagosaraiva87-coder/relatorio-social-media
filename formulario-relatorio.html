@@ -202,10 +202,19 @@ async function buscarDados() {
   try {
     const since = Math.floor(new Date(ano, mes - 1, 1).getTime() / 1000);
     const until = Math.floor(new Date(ano, mes, 0, 23, 59, 59).getTime() / 1000);
-    const dp    = `&period=day&since=${since}&until=${until}&access_token=${token}`;
+
+    // ── Buscar Page Access Token ───────────────────────────────────
+    let pageToken = token;
+    try {
+      const accounts = await apiFetch(`${BASE}/me/accounts?access_token=${token}`);
+      const found = (accounts.data || []).find(p => p.id === pageId);
+      if (found?.access_token) pageToken = found.access_token;
+    } catch(e) {}
+
+    const dp = `&period=day&since=${since}&until=${until}&access_token=${pageToken}`;
 
     // ── Facebook: total de fãs ─────────────────────────────────────
-    const pageInfo = await apiFetch(`${BASE}/${pageId}?fields=fan_count,name&access_token=${token}`);
+    const pageInfo = await apiFetch(`${BASE}/${pageId}?fields=fan_count,name&access_token=${pageToken}`);
     const pageName = pageInfo.name || '';
     setV('fb_curt', pageInfo.fan_count || 0);
     if (pageName) document.getElementById('cliente').value = pageName;
