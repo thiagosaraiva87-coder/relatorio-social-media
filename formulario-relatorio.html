@@ -212,7 +212,7 @@ async function buscarDados() {
       document.getElementById('cliente').value = pageName;
 
     // ── Facebook: insights diários ─────────────────────────────────
-    const fbMetrics = 'page_impressions,page_impressions_unique,page_post_engagements,page_fan_adds,page_views_total,page_total_actions';
+    const fbMetrics = 'page_impressions,page_impressions_unique,page_post_engagements,page_fan_adds';
     const fbIns = await apiFetch(`${BASE}/${pageId}/insights?metric=${fbMetrics}${dp}`);
     let fbDailyReach = [];
     fbIns.data.forEach(m => {
@@ -222,10 +222,17 @@ async function buscarDados() {
         case 'page_impressions_unique': setV('fb_alc',   total); fbDailyReach = m.values || []; break;
         case 'page_post_engagements':   setV('fb_eng',   total); break;
         case 'page_fan_adds':           setV('fb_ncurt', total); break;
-        case 'page_views_total':        setV('fb_vis',   total); break;
-        case 'page_total_actions':      setV('fb_clk',   total); break;
       }
     });
+    // Métricas opcionais (nem todas as páginas suportam)
+    try {
+      const fbVis = await apiFetch(`${BASE}/${pageId}/insights?metric=page_views_total${dp}`);
+      setV('fb_vis', sumValues(fbVis.data[0]));
+    } catch(e) {}
+    try {
+      const fbClk = await apiFetch(`${BASE}/${pageId}/insights?metric=page_total_actions${dp}`);
+      setV('fb_clk', sumValues(fbClk.data[0]));
+    } catch(e) {}
     // Agrega alcance FB por semana
     const fbWeeks = [0,0,0,0];
     fbDailyReach.forEach(v => {
