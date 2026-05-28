@@ -246,18 +246,22 @@ async function buscarDados() {
 
     // ── Instagram: insights ───────────────────────────────────────
     if (igId) {
-      const igMetrics = 'reach,impressions,profile_views,website_clicks';
-      const igIns = await apiFetch(`${BASE}/${igId}/insights?metric=${igMetrics}${dp}`);
+      // Cada métrica separada para evitar erros de métricas inválidas
       let igDailyReach = [];
-      igIns.data.forEach(m => {
-        const total = sumValues(m);
-        switch (m.name) {
-          case 'reach':          setV('ig_alc', total); igDailyReach = m.values || []; break;
-          case 'impressions':    setV('ig_imp', total); break;
-          case 'profile_views':  setV('ig_vis', total); break;
-          case 'website_clicks': setV('ig_clk', total); break;
-        }
-      });
+      const igMetricMap = [
+        ['reach',          'ig_alc', true],
+        ['views',          'ig_imp', false],
+        ['profile_views',  'ig_vis', false],
+        ['website_clicks', 'ig_clk', false],
+        ['total_interactions', 'ig_eng', false],
+      ];
+      for (const [metric, field, isReach] of igMetricMap) {
+        try {
+          const r = await apiFetch(`${BASE}/${igId}/insights?metric=${metric}${dp}`);
+          const d = r.data?.[0];
+          if (d) { setV(field, sumValues(d)); if (isReach) igDailyReach = d.values || []; }
+        } catch(e) {}
+      }
       // Agrega alcance IG por semana
       const igWeeks = [0,0,0,0];
       igDailyReach.forEach(v => {
