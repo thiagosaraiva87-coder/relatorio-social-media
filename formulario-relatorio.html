@@ -200,127 +200,24 @@ async function buscarDados() {
   apiStatus('Buscando dados do Facebook e Instagram...', 'loading');
 
   try {
-    const since = Math.floor(new Date(ano, mes - 1, 1).getTime() / 1000);
-    const until = Math.floor(new Date(ano, mes, 0, 23, 59, 59).getTime() / 1000);
-
-    // ── Buscar Page Access Token ───────────────────────────────────
-    let pageToken = token;
-    try {
-      const accounts = await apiFetch(`${BASE}/me/accounts?access_token=${token}`);
-      const found = (accounts.data || []).find(p => p.id === pageId);
-      if (found?.access_token) pageToken = found.access_token;
-    } catch(e) {}
-
-    const dp = `&period=day&since=${since}&until=${until}&access_token=${pageToken}`;
-
-    // ── Facebook: total de fãs ─────────────────────────────────────
-    const pageInfo = await apiFetch(`${BASE}/${pageId}?fields=fan_count,name&access_token=${pageToken}`);
-    const pageName = pageInfo.name || '';
-    setV('fb_curt', pageInfo.fan_count || 0);
-    if (pageName) document.getElementById('cliente').value = pageName;
-
-    // ── Facebook: insights — cada métrica separada para evitar erros ──
-    let fbDailyReach = [];
-    let fbErros = [];
-    const fbMetricMap = [
-      ['page_impressions',        'fb_imp',   false],
-      ['page_impressions_unique', 'fb_alc',   true],
-      ['page_post_engagements',   'fb_eng',   false],
-      ['page_fan_adds',           'fb_ncurt', false],
-      ['page_views_total',        'fb_vis',   false],
-      ['page_total_actions',      'fb_clk',   false],
-    ];
-    for (const [metric, field, isReach] of fbMetricMap) {
-      try {
-        const r = await apiFetch(`${BASE}/${pageId}/insights?metric=${metric}${dp}`);
-        const d = r.data?.[0];
-        if (d) { setV(field, sumValues(d)); if (isReach) fbDailyReach = d.values || []; }
-      } catch(e) { fbErros.push(metric + ': ' + e.message); }
-    }
-    if (fbErros.length > 0) {
-      apiStatus('⚠ Erro FB: ' + fbErros[0], 'err');
-      throw new Error(fbErros[0]);
-    }
-    // Agrega alcance FB por semana
-    const fbWeeks = [0,0,0,0];
-    fbDailyReach.forEach(v => {
-      const day = new Date(v.end_time).getDate();
-      const w = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
-      fbWeeks[w] += parseFloat(v.value) || 0;
-    });
-    fbWeeks.forEach((v,i) => setV(`h${i}f`, Math.round(v)));
-
-    // ── Descobrir ID do Instagram ─────────────────────────────────
-    let igId = '';
-    try {
-      const igConn = await apiFetch(`${BASE}/${pageId}?fields=instagram_business_account&access_token=${token}`);
-      igId = igConn.instagram_business_account?.id || '';
-    } catch(e) {}
-
-    // ── Instagram: insights ───────────────────────────────────────
-    if (igId) {
-      // Cada métrica separada para evitar erros de métricas inválidas
-      let igDailyReach = [];
-      const igMetricMap = [
-        ['reach',              'ig_alc', true],
-        ['views',              'ig_imp', false],
-        ['profile_views',      'ig_vis', false],
-        ['website_clicks',     'ig_clk', false],
-        ['total_interactions', 'ig_eng', false],
-      ];
-      let igErros = [];
-      for (const [metric, field, isReach] of igMetricMap) {
-        try {
-          const r = await apiFetch(`${BASE}/${igId}/insights?metric=${metric}&period=day&since=${since}&until=${until}&metric_type=total_value&access_token=${token}`);
-          const d = r.data?.[0];
-          if (d) {
-            const val = d.total_value?.value ?? sumValues(d);
-            setV(field, val);
-            if (isReach) igDailyReach = d.values || d.total_value?.breakdowns?.[0]?.results || [];
-          }
-        } catch(e) { igErros.push(metric + ': ' + e.message); }
-      }
-      if (igErros.length > 0) console.warn('IG erros:', igErros);
-      // Agrega alcance IG por semana
-      const igWeeks = [0,0,0,0];
-      igDailyReach.forEach(v => {
-        const day = new Date(v.end_time).getDate();
-        const w = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
-        igWeeks[w] += parseFloat(v.value) || 0;
-      });
-      igWeeks.forEach((v,i) => setV(`h${i}g`, Math.round(v)));
-      // Seguidores: último valor de follower_count
-      try {
-        const flw = await apiFetch(`${BASE}/${igId}/insights?metric=follower_count${dp}`);
-        const vals = (flw.data?.[0]?.values || []).filter(v => v.value > 0);
-        if (vals.length > 0) {
-          setV('ig_seg', vals[vals.length - 1].value);
-          if (vals.length > 1) setV('ig_nseg', Math.max(0, vals[vals.length-1].value - vals[0].value));
-        }
-      } catch(e) {}
-      // Taxa de engajamento calculada
-      const igAlc = parseFloat(document.getElementById('ig_alc').value) || 0;
-      const igEng = parseFloat(document.getElementById('ig_eng').value) || 0;
-      if (igAlc > 0) setV('ig_taxa', (igEng / igAlc * 100).toFixed(1));
-    }
-
-    // Preenche período automaticamente
     const nomesMes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    // ── Facebook: nome e total de curtidas ────────────────────────
+    const pageInfo = await apiFetch(`${BASE}/${pageId}?fields=fan_count,name&access_token=${token}`);
+    setV('fb_curt', pageInfo.fan_count || 0);
+    if (pageInfo.name) document.getElementById('cliente').value = pageInfo.name;
+
+    // ── Preenche período ──────────────────────────────────────────
     if (!document.getElementById('periodo').value)
       document.getElementById('periodo').value = `${nomesMes[mes]} ${ano}`;
 
-    // Salva token e page_id para próxima vez
+    // ── Salva configurações ───────────────────────────────────────
     localStorage.setItem('api_token',   token);
     localStorage.setItem('api_page_id', pageId);
     localStorage.setItem('api_mes',     mes);
     localStorage.setItem('api_ano',     ano);
 
-    const fbAlcVal = document.getElementById('fb_alc')?.value || '0';
-    const igAlcVal = document.getElementById('ig_alc')?.value || '0';
-    const igMsg = igId
-      ? `Facebook e Instagram preenchidos. FB Alcance: ${fbAlcVal} | IG Alcance: ${igAlcVal}`
-      : 'Facebook preenchido. Instagram não encontrado (vincule a conta à Página).';
-    apiStatus('✓ ' + igMsg + ' Confira os campos e clique em Baixar.', 'ok');
+    apiStatus('✓ Nome do cliente e curtidas preenchidos. Preencha os demais campos manualmente com os dados do Business Suite.', 'ok');
   } catch(err) {
     apiStatus('✗ Erro: ' + err.message, 'err');
   } finally {
