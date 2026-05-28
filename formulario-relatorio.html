@@ -162,7 +162,7 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
 
 <script>
 // ── Meta Graph API ───────────────────────────────────────────────────
-const API_VER = 'v19.0';
+const API_VER = 'v21.0';
 const BASE = 'https://graph.facebook.com/' + API_VER;
 
 function toggleToken() {
@@ -301,7 +301,11 @@ async function buscarDados() {
     localStorage.setItem('api_mes',     mes);
     localStorage.setItem('api_ano',     ano);
 
-    const igMsg = igId ? 'Facebook e Instagram preenchidos.' : 'Facebook preenchido. Instagram não encontrado (vincule a conta à Página).';
+    const fbAlcVal = document.getElementById('fb_alc')?.value || '0';
+    const igAlcVal = document.getElementById('ig_alc')?.value || '0';
+    const igMsg = igId
+      ? `Facebook e Instagram preenchidos. FB Alcance: ${fbAlcVal} | IG Alcance: ${igAlcVal}`
+      : 'Facebook preenchido. Instagram não encontrado (vincule a conta à Página).';
     apiStatus('✓ ' + igMsg + ' Confira os campos e clique em Baixar.', 'ok');
   } catch(err) {
     apiStatus('✗ Erro: ' + err.message, 'err');
