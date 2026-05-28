@@ -212,6 +212,7 @@ async function buscarDados() {
 
     // ── Facebook: insights — cada métrica separada para evitar erros ──
     let fbDailyReach = [];
+    let fbErros = [];
     const fbMetricMap = [
       ['page_impressions',        'fb_imp',   false],
       ['page_impressions_unique', 'fb_alc',   true],
@@ -225,7 +226,11 @@ async function buscarDados() {
         const r = await apiFetch(`${BASE}/${pageId}/insights?metric=${metric}${dp}`);
         const d = r.data?.[0];
         if (d) { setV(field, sumValues(d)); if (isReach) fbDailyReach = d.values || []; }
-      } catch(e) {}
+      } catch(e) { fbErros.push(metric + ': ' + e.message); }
+    }
+    if (fbErros.length > 0) {
+      apiStatus('⚠ Erro FB: ' + fbErros[0], 'err');
+      throw new Error(fbErros[0]);
     }
     // Agrega alcance FB por semana
     const fbWeeks = [0,0,0,0];
