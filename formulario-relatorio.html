@@ -84,6 +84,7 @@ body{background:var(--dark);color:var(--text);font-family:'Segoe UI',system-ui,s
 
       <div class="f"><label>Publicações no Mês</label><input id="ig_pub" type="number" placeholder="0"></div>
       <div class="f"><label>Plays em Reels</label><input id="ig_reels" type="number" placeholder="0"></div>
+      <div class="f"><label>Mensagens Recebidas</label><input id="ig_msg" type="number" placeholder="0"></div>
     </div></div>
   </div>
 
@@ -134,7 +135,7 @@ for (let i = 0; i < 4; i++) {
 // ── Auto-save / Auto-load ─────────────────────────────────────────────
 const KEYS = ['agencia','cliente','periodo',
   'fb_alc','fb_imp','fb_curt','fb_ncurt','fb_eng','fb_clk','fb_vis','fb_pub','fb_msg',
-  'ig_alc','ig_imp','ig_seg','ig_nseg','ig_eng','ig_taxa','ig_vis','ig_pub','ig_reels',
+  'ig_alc','ig_imp','ig_seg','ig_nseg','ig_eng','ig_taxa','ig_vis','ig_pub','ig_reels','ig_msg',
   'p1_ti','p1_le','p1_al','p1_cu','p1_co','p2_ti','p2_le','p2_al','p2_cu','p2_co',
   'p3_ti','p3_le','p3_al','p3_cu','p3_co'];
 for (let i=0;i<4;i++) KEYS.push(`h${i}l`,`h${i}f`,`h${i}g`);
@@ -172,7 +173,7 @@ async function getData() {
     fb:{alc:gN('fb_alc'),imp:gN('fb_imp'),curt:gN('fb_curt'),ncurt:gN('fb_ncurt'),
         eng:gN('fb_eng'),clk:gN('fb_clk'),vis:gN('fb_vis'),pub:gN('fb_pub'),msg:gN('fb_msg')},
     ig:{alc:gN('ig_alc'),imp:gN('ig_imp'),seg:gN('ig_seg'),nseg:gN('ig_nseg'),
-        eng:gN('ig_eng'),taxa:gN('ig_taxa'),vis:gN('ig_vis'),pub:gN('ig_pub'),reels:gN('ig_reels')},
+        eng:gN('ig_eng'),taxa:gN('ig_taxa'),vis:gN('ig_vis'),pub:gN('ig_pub'),reels:gN('ig_reels'),msg:gN('ig_msg')},
     p:[],hs:[]
   };
   for(let n=1;n<=3;n++){
@@ -261,6 +262,7 @@ function mkHTML(d) {
 <div class="kc"><div class="kl">Visitas ao Perfil</div><div class="kv">${fmt(d.ig.vis)}</div></div>
 <div class="kc"><div class="kl">Publicações no Mês</div><div class="kv">${fmt(d.ig.pub)}</div><div class="ks">Feed + Reels</div></div>
 <div class="kc"><div class="kl">Plays em Reels</div><div class="kv">${fmt(d.ig.reels)}</div></div>
+<div class="kc"><div class="kl">Mensagens Recebidas</div><div class="kv">${fmt(d.ig.msg)}</div></div>
 </div></div></div>
 <div class="st">Alcance Semanal</div><div class="cr">
 <div class="cc"><h3>Alcance por Semana</h3><p>Facebook e Instagram combinados &mdash; semanas do mês</p><div class="cw">${barSVG}</div></div>
